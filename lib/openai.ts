@@ -13,6 +13,15 @@ export function getOpenAI() {
   return new OpenAI({ apiKey });
 }
 
+// Images may use a dedicated key; fall back to the main key when not set.
+function getOpenAIForImages() {
+  const imageKey = process.env.OPENAI_IMAGE_API_KEY;
+  if (imageKey && !imageKey.startsWith("sk-...")) {
+    return new OpenAI({ apiKey: imageKey });
+  }
+  return getOpenAI();
+}
+
 // ---------- Types describing the generated deck content ----------
 export type PersonPage = {
   title: string;
@@ -134,7 +143,7 @@ export async function generateDeckContent(
 // Returns a PNG image buffer for the given prompt, or null on failure.
 export async function generateImage(prompt: string): Promise<Buffer | null> {
   try {
-    const client = getOpenAI();
+    const client = getOpenAIForImages();
     const result = await client.images.generate({
       model: IMAGE_MODEL,
       prompt,
