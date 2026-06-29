@@ -30,10 +30,24 @@ export type PersonPage = {
   imagePrompt: string; // prompt for the page image
 };
 
+// Localized labels for the deck's fixed chrome (headings/footers).
+export type DeckLabels = {
+  pathwayOverview: string;
+  whyDestination: string;
+  opportunities: string;
+  mainApplicant: string;
+  partnerSpouse: string;
+  forPrefix: string; // e.g. "For" → "For Daniel"
+  child: string; // fallback when a child has no name
+  preparedFor: string; // footer note
+  closing: string; // closing slide line
+};
+
 export type DeckContent = {
   headline: string; // cover headline
   subhead: string; // cover subhead
   coverImagePrompt: string;
+  labels: DeckLabels;
   overview: {
     title: string;
     programs: { name: string; summary: string; keyPoints: string[] }[];
@@ -42,6 +56,19 @@ export type DeckContent = {
   applicant: PersonPage;
   spouse: PersonPage | null;
   children: (PersonPage & { name: string })[];
+};
+
+// English fallbacks if the model omits a label.
+export const DEFAULT_LABELS: DeckLabels = {
+  pathwayOverview: "PATHWAY OVERVIEW",
+  whyDestination: "WHY THIS DESTINATION",
+  opportunities: "OPPORTUNITIES",
+  mainApplicant: "MAIN APPLICANT",
+  partnerSpouse: "PARTNER / SPOUSE",
+  forPrefix: "For",
+  child: "Child",
+  preparedFor: "Prepared exclusively for our valued client",
+  closing: "Let's build your future together.",
 };
 
 type PersonInput = {
@@ -54,6 +81,7 @@ type PersonInput = {
 export type DeckInput = {
   country: string;
   city: string | null;
+  language: string; // target language for all written content, e.g. "Persian (Farsi)"
   programs: {
     name: string;
     description: string | null;
@@ -66,8 +94,9 @@ export type DeckInput = {
 };
 
 const SYSTEM_PROMPT = `You are a senior immigration consultant at Sugimoto Visa writing a polished, encouraging client-facing presentation after a consultation.
-Write in warm, professional, confident English. Be specific and realistic — never invent program rules; rely on the provided program notes and general, well-established facts about the destination.
+Write in a warm, professional, confident tone. Be specific and realistic — never invent program rules; rely on the provided program notes and general, well-established facts about the destination.
 For each person, focus on concrete opportunities tailored to THEIR background (career prospects, recognition of qualifications, study/school options for children, lifestyle and community).
+Image prompts are the ONLY field that must always be written in English (they are sent to an image model); everything else must be in the requested target language.
 Image prompts must describe tasteful, photorealistic, optimistic editorial photography (no text, no logos, no collages, real-looking people or scenery relevant to the destination and the person's situation).
 Return ONLY valid JSON matching the requested schema.`;
 
@@ -93,7 +122,10 @@ function buildUserPrompt(input: DeckInput): string {
     .filter(Boolean)
     .join("\n");
 
-  return `Destination: ${place}
+  return `TARGET LANGUAGE: ${input.language}
+Write EVERY piece of text in ${input.language}, EXCEPT the "imagePrompt" fields which must stay in English. This includes headline, subhead, all titles, summaries, bullet points, AND the "labels" object.
+
+Destination: ${place}
 
 Programs discussed:
 ${programs}
@@ -103,9 +135,20 @@ ${people}
 
 Produce a JSON object with this exact shape:
 {
-  "headline": string,                // cover title, e.g. "Your Future in ${place}"
+  "headline": string,                // cover title, e.g. the ${input.language} equivalent of "Your Future in ${place}"
   "subhead": string,                 // one inspiring sentence
-  "coverImagePrompt": string,
+  "coverImagePrompt": string,        // ENGLISH
+  "labels": {                        // fixed UI labels, translated into ${input.language}
+    "pathwayOverview": string,       // e.g. "PATHWAY OVERVIEW"
+    "whyDestination": string,        // e.g. "WHY THIS DESTINATION"
+    "opportunities": string,         // e.g. "OPPORTUNITIES"
+    "mainApplicant": string,         // e.g. "MAIN APPLICANT"
+    "partnerSpouse": string,         // e.g. "PARTNER / SPOUSE"
+    "forPrefix": string,             // e.g. "For" (used as "For <child name>")
+    "child": string,                 // e.g. "Child"
+    "preparedFor": string,           // e.g. "Prepared exclusively for our valued client"
+    "closing": string                // e.g. "Let's build your future together."
+  },
   "overview": {
     "title": string,
     "programs": [ { "name": string, "summary": string, "keyPoints": string[] } ],
@@ -120,6 +163,8 @@ Rules:
 - "opportunities" arrays: 4-6 short, specific bullet points each.
 - If there is no spouse provided, set "spouse" to null.
 - Make one children entry per child provided (empty array if none). For children, emphasize schooling, education quality, language, activities, and a bright future.
+- Keep program "name" values recognizable (you may keep the official program name and add a ${input.language} gloss if helpful).
+- Child "name" values are the people's actual names — keep them as given, do not translate names.
 - Tailor everything to each person's stated background and to ${place}.`;
 }
 
@@ -137,7 +182,10 @@ export async function generateDeckContent(
     ],
   });
   const raw = completion.choices[0]?.message?.content || "{}";
-  return JSON.parse(raw) as DeckContent;
+  const content = JSON.parse(raw) as DeckContent;
+  // Fill any missing labels with English defaults so the deck never has blanks.
+  content.labels = { ...DEFAULT_LABELS, ...(content.labels ?? {}) };
+  return content;
 }
 
 // Returns a PNG image buffer for the given prompt, or null on failure.

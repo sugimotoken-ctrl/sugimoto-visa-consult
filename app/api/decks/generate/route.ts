@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       `*,
        countries(name),
        cities(name),
+       languages(name, rtl),
        p1:pathways!consultations_pathway_id_1_fkey(name, description, requirements, talking_points),
        p2:pathways!consultations_pathway_id_2_fkey(name, description, requirements, talking_points),
        children(id, name, age, background, sort_order)`
@@ -70,9 +71,13 @@ export async function POST(req: Request) {
       throw new Error("Select at least one program before generating.");
     }
 
+    const language = c.languages?.name || "English";
+    const rtl = Boolean(c.languages?.rtl);
+
     const input: DeckInput = {
       country: c.countries?.name || "the destination country",
       city: c.cities?.name || null,
+      language,
       programs: programs.map((p) => ({
         name: p.name,
         description: p.description,
@@ -121,8 +126,8 @@ export async function POST(req: Request) {
       children: childImgs,
     };
 
-    // 3) Build the .pptx.
-    const buffer = await buildDeck(content, images);
+    // 3) Build the .pptx (mirrored layout + script fonts for RTL languages).
+    const buffer = await buildDeck(content, images, rtl);
 
     // 4) Upload via service role (private bucket).
     const admin = createAdminClient();

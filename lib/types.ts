@@ -33,6 +33,14 @@ export type City = {
   created_at: string;
 };
 
+export type Language = {
+  id: string;
+  name: string;
+  rtl: boolean;
+  active: boolean;
+  created_at: string;
+};
+
 export type Child = {
   id?: string;
   consultation_id?: string;
@@ -57,6 +65,7 @@ export type Consultation = {
   pathway_id_2: string | null;
   country_id: string | null;
   city_id: string | null;
+  language_id: string | null;
   deck_status: DeckStatus;
   deck_url: string | null;
   deck_error: string | null;

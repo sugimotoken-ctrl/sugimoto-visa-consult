@@ -30,6 +30,7 @@ export default async function ConsultationDetailPage({
       `*,
        countries(name),
        cities(name),
+       languages(name),
        p1:pathways!consultations_pathway_id_1_fkey(name),
        p2:pathways!consultations_pathway_id_2_fkey(name),
        children(id, name, age, background, sort_order)`
@@ -74,6 +75,7 @@ export default async function ConsultationDetailPage({
           <Detail label="Program 2" value={c.p2?.name} />
           <Detail label="Country" value={c.countries?.name} />
           <Detail label="City" value={c.cities?.name} />
+          <Detail label="Presentation language" value={c.languages?.name} />
         </dl>
       </div>
 

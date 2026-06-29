@@ -41,6 +41,9 @@ export function DashboardNav({ profile }: { profile: Profile }) {
             <NavLink href="/dashboard/admin/locations" label="Locations" />
           )}
           {isAdmin && (
+            <NavLink href="/dashboard/admin/languages" label="Languages" />
+          )}
+          {isAdmin && (
             <NavLink href="/dashboard/admin/consultants" label="Consultants" />
           )}
         </nav>

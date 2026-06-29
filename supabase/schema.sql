@@ -66,6 +66,14 @@ create table if not exists public.cities (
   unique (country_id, name)
 );
 
+create table if not exists public.languages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  rtl boolean not null default false,   -- right-to-left script (e.g. Persian, Arabic)
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------------
 -- Consultations + children
 -- ---------------------------------------------------------------------------
@@ -83,6 +91,7 @@ create table if not exists public.consultations (
   pathway_id_2 uuid references public.pathways(id) on delete set null,
   country_id uuid references public.countries(id) on delete set null,
   city_id uuid references public.cities(id) on delete set null,
+  language_id uuid references public.languages(id) on delete set null,
   deck_status deck_status not null default 'draft',
   deck_url text,
   deck_error text,
@@ -156,6 +165,7 @@ alter table public.profiles      enable row level security;
 alter table public.pathways      enable row level security;
 alter table public.countries     enable row level security;
 alter table public.cities        enable row level security;
+alter table public.languages     enable row level security;
 alter table public.consultations enable row level security;
 alter table public.children      enable row level security;
 alter table public.admin_emails  enable row level security;
@@ -195,6 +205,13 @@ drop policy if exists "admin write cities" on public.cities;
 create policy "admin write cities" on public.cities
   for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "read languages" on public.languages;
+create policy "read languages" on public.languages
+  for select using (public.is_active());
+drop policy if exists "admin write languages" on public.languages;
+create policy "admin write languages" on public.languages
+  for all using (public.is_admin()) with check (public.is_admin());
+
 -- consultations: consultant owns theirs; admins read all
 drop policy if exists "own consultations" on public.consultations;
 create policy "own consultations" on public.consultations
@@ -232,5 +249,11 @@ on conflict (id) do nothing;
 drop policy if exists "active users read decks" on storage.objects;
 create policy "active users read decks" on storage.objects
   for select using (bucket_id = 'decks' and public.is_active());
+
+-- ---------------------------------------------------------------------------
+-- Seed default language
+-- ---------------------------------------------------------------------------
+insert into public.languages (name, rtl) values ('English', false)
+on conflict (name) do nothing;
 
 -- Inserts/updates to the decks bucket are done server-side with the service role.

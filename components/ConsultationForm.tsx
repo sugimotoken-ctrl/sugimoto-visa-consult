@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
 import { createConsultation } from "@/app/dashboard/consultations/actions";
-import type { City, Country, Pathway } from "@/lib/types";
+import type { City, Country, Language, Pathway } from "@/lib/types";
 
 type Kid = { name: string; age: string; background: string };
 
@@ -11,10 +11,12 @@ export function ConsultationForm({
   pathways,
   countries,
   cities,
+  languages,
 }: {
   pathways: Pathway[];
   countries: Country[];
   cities: City[];
+  languages: Language[];
 }) {
   const [state, action, pending] = useActionState(createConsultation, null);
   const [countryId, setCountryId] = useState("");
@@ -121,6 +123,29 @@ export function ConsultationForm({
               {cityOptions.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="language_id">
+              Presentation language *
+            </label>
+            <select
+              id="language_id"
+              name="language_id"
+              className="field"
+              required
+              defaultValue={
+                languages.find((l) => l.name.toLowerCase() === "english")?.id ??
+                languages[0]?.id ??
+                ""
+              }
+            >
+              {languages.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                  {l.rtl ? " (RTL)" : ""}
                 </option>
               ))}
             </select>

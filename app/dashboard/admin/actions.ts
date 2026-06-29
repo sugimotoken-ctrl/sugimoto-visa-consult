@@ -75,6 +75,33 @@ export async function deleteCity(id: string) {
   revalidatePath("/dashboard/admin/locations");
 }
 
+// ---------- Languages ----------
+export async function createLanguage(_prev: unknown, formData: FormData) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const name = String(formData.get("name") || "").trim();
+  if (!name) return { error: "Language name is required." };
+  const rtl = formData.get("rtl") === "on";
+  const { error } = await supabase.from("languages").insert({ name, rtl });
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/admin/languages");
+  return { ok: true };
+}
+
+export async function toggleLanguage(id: string, active: boolean) {
+  await requireAdmin();
+  const supabase = await createClient();
+  await supabase.from("languages").update({ active }).eq("id", id);
+  revalidatePath("/dashboard/admin/languages");
+}
+
+export async function deleteLanguage(id: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  await supabase.from("languages").delete().eq("id", id);
+  revalidatePath("/dashboard/admin/languages");
+}
+
 // ---------- Consultants ----------
 export async function setConsultantStatus(
   id: string,

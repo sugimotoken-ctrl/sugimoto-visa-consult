@@ -47,6 +47,7 @@ export async function createConsultation(_prev: unknown, formData: FormData) {
       pathway_id_2: p2,
       country_id: uuid(formData.get("country_id")),
       city_id: uuid(formData.get("city_id")),
+      language_id: uuid(formData.get("language_id")),
     })
     .select("id")
     .single();

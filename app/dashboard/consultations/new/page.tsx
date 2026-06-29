@@ -7,18 +7,19 @@ export default async function NewConsultationPage() {
   await requireActiveProfile();
   const supabase = await createClient();
 
-  const [{ data: pathways }, { data: countries }, { data: cities }] =
-    await Promise.all([
-      supabase
-        .from("pathways")
-        .select("*")
-        .eq("active", true)
-        .order("name"),
-      supabase.from("countries").select("*").order("name"),
-      supabase.from("cities").select("*").order("name"),
-    ]);
+  const [
+    { data: pathways },
+    { data: countries },
+    { data: cities },
+    { data: languages },
+  ] = await Promise.all([
+    supabase.from("pathways").select("*").eq("active", true).order("name"),
+    supabase.from("countries").select("*").order("name"),
+    supabase.from("cities").select("*").order("name"),
+    supabase.from("languages").select("*").eq("active", true).order("name"),
+  ]);
 
-  const noRefData = !pathways?.length || !countries?.length;
+  const noRefData = !pathways?.length || !countries?.length || !languages?.length;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -44,8 +45,8 @@ export default async function NewConsultationPage() {
             Reference data is missing.
           </p>
           <p className="mt-1">
-            An administrator needs to add at least one pathway and one country
-            before consultations can be created.
+            An administrator needs to add at least one pathway, one country, and
+            one language before consultations can be created.
           </p>
         </div>
       ) : (
@@ -53,6 +54,7 @@ export default async function NewConsultationPage() {
           pathways={pathways!}
           countries={countries!}
           cities={cities ?? []}
+          languages={languages!}
         />
       )}
     </div>
