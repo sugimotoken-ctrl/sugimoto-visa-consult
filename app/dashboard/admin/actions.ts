@@ -83,6 +83,16 @@ export async function setConsultantStatus(
   await requireAdmin();
   const supabase = await createClient();
   await supabase.from("profiles").update({ status }).eq("id", id);
+  // Activating a consultant also confirms their email, so they can sign in
+  // immediately regardless of Supabase's "Confirm email" setting.
+  if (status === "active") {
+    try {
+      const adminDb = createAdminClient();
+      await adminDb.auth.admin.updateUserById(id, { email_confirm: true });
+    } catch (e) {
+      console.error("Failed to auto-confirm email on activation:", e);
+    }
+  }
   revalidatePath("/dashboard/admin/consultants");
 }
 
