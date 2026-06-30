@@ -48,6 +48,7 @@ create table if not exists public.pathways (
   description text,
   requirements text,
   talking_points text,
+  prompt text,            -- custom AI instructions for writing this pathway's slides
   active boolean not null default true,
   created_at timestamptz not null default now()
 );

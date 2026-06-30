@@ -87,6 +87,7 @@ export type DeckInput = {
     description: string | null;
     requirements: string | null;
     talking_points: string | null;
+    prompt: string | null; // admin's custom writing instructions for this pathway
   }[];
   applicant: PersonInput;
   spouse: PersonInput | null;
@@ -105,8 +106,13 @@ function buildUserPrompt(input: DeckInput): string {
   const programs = input.programs
     .map(
       (p, i) =>
-        `Program ${i + 1}: ${p.name}\n  Description: ${p.description || "n/a"}\n  Requirements: ${p.requirements || "n/a"}\n  Talking points: ${p.talking_points || "n/a"}`
+        `Program ${i + 1}: ${p.name}\n  Description: ${p.description || "n/a"}\n  Requirements: ${p.requirements || "n/a"}\n  Talking points: ${p.talking_points || "n/a"}${p.prompt ? `\n  SPECIAL WRITING INSTRUCTIONS (follow these closely for this program): ${p.prompt}` : ""}`
     )
+    .join("\n");
+
+  const customInstructions = input.programs
+    .filter((p) => p.prompt)
+    .map((p) => `For "${p.name}": ${p.prompt}`)
     .join("\n");
 
   const person = (p: PersonInput | null) =>
@@ -132,7 +138,7 @@ ${programs}
 
 Family:
 ${people}
-
+${customInstructions ? `\nADMIN PRESENTATION INSTRUCTIONS (highest priority — follow them precisely while keeping everything accurate):\n${customInstructions}\n` : ""}
 Produce a JSON object with this exact shape:
 {
   "headline": string,                // cover title, e.g. the ${input.language} equivalent of "Your Future in ${place}"
@@ -165,7 +171,8 @@ Rules:
 - Make one children entry per child provided (empty array if none). For children, emphasize schooling, education quality, language, activities, and a bright future.
 - Keep program "name" values recognizable (you may keep the official program name and add a ${input.language} gloss if helpful).
 - Child "name" values are the people's actual names — keep them as given, do not translate names.
-- Tailor everything to each person's stated background and to ${place}.`;
+- Tailor everything to each person's stated background and to ${place}.
+- Obey the ADMIN PRESENTATION INSTRUCTIONS and any per-program SPECIAL WRITING INSTRUCTIONS above; never contradict them.`;
 }
 
 export async function generateDeckContent(

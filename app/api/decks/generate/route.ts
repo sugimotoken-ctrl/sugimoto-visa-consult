@@ -41,8 +41,8 @@ export async function POST(req: Request) {
        countries(name),
        cities(name),
        languages(name, rtl),
-       p1:pathways!consultations_pathway_id_1_fkey(name, description, requirements, talking_points),
-       p2:pathways!consultations_pathway_id_2_fkey(name, description, requirements, talking_points),
+       p1:pathways!consultations_pathway_id_1_fkey(name, description, requirements, talking_points, prompt),
+       p2:pathways!consultations_pathway_id_2_fkey(name, description, requirements, talking_points, prompt),
        children(id, name, age, background, sort_order)`
     )
     .eq("id", consultationId)
@@ -83,6 +83,7 @@ export async function POST(req: Request) {
         description: p.description,
         requirements: p.requirements,
         talking_points: p.talking_points,
+        prompt: p.prompt,
       })),
       applicant: {
         role: "Main applicant",

@@ -16,7 +16,30 @@ export async function createPathway(_prev: unknown, formData: FormData) {
     description: String(formData.get("description") || "").trim() || null,
     requirements: String(formData.get("requirements") || "").trim() || null,
     talking_points: String(formData.get("talking_points") || "").trim() || null,
+    prompt: String(formData.get("prompt") || "").trim() || null,
   });
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/admin/pathways");
+  return { ok: true };
+}
+
+export async function updatePathway(_prev: unknown, formData: FormData) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  if (!id) return { error: "Missing pathway id." };
+  if (!name) return { error: "Pathway name is required." };
+  const { error } = await supabase
+    .from("pathways")
+    .update({
+      name,
+      description: String(formData.get("description") || "").trim() || null,
+      requirements: String(formData.get("requirements") || "").trim() || null,
+      talking_points: String(formData.get("talking_points") || "").trim() || null,
+      prompt: String(formData.get("prompt") || "").trim() || null,
+    })
+    .eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/dashboard/admin/pathways");
   return { ok: true };

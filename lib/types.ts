@@ -16,6 +16,7 @@ export type Pathway = {
   description: string | null;
   requirements: string | null;
   talking_points: string | null;
+  prompt: string | null; // custom AI instructions for writing this pathway's slides
   active: boolean;
   created_at: string;
 };
