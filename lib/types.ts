@@ -52,6 +52,16 @@ export type Child = {
 
 export type DeckStatus = "draft" | "generating" | "ready" | "error";
 
+export type Deck = {
+  id: string;
+  consultation_id: string;
+  storage_path: string;
+  url: string | null;
+  language: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Consultation = {
   id: string;
   consultant_id: string;

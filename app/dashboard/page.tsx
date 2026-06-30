@@ -3,18 +3,33 @@ import { createClient } from "@/lib/supabase/server";
 import { requireActiveProfile } from "@/lib/auth";
 import { StatusBadge } from "@/components/StatusBadge";
 
-export default async function ConsultationsPage() {
+export default async function ConsultationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const profile = await requireActiveProfile();
   const supabase = await createClient();
 
+  const rawQ = (await searchParams).q?.trim() ?? "";
+  // Strip characters that would break PostgREST's or() filter syntax.
+  const q = rawQ.replace(/[,()%*]/g, " ").trim();
+
   // RLS scopes this to the consultant's own rows (admins see all).
-  const { data: consultations } = await supabase
+  let query = supabase
     .from("consultations")
     .select(
-      "id, client_email, applicant_name, created_at, deck_status, consultant_id, countries(name), p1:pathways!consultations_pathway_id_1_fkey(name)"
+      "id, client_email, applicant_name, spouse_name, created_at, deck_status, consultant_id, countries(name), p1:pathways!consultations_pathway_id_1_fkey(name)"
     )
     .order("created_at", { ascending: false });
 
+  if (q) {
+    query = query.or(
+      `applicant_name.ilike.%${q}%,client_email.ilike.%${q}%,spouse_name.ilike.%${q}%`
+    );
+  }
+
+  const { data: consultations } = await query;
   const rows = consultations ?? [];
 
   return (
@@ -35,12 +50,46 @@ export default async function ConsultationsPage() {
         </Link>
       </div>
 
+      <form method="get" className="mb-4 flex gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search by applicant, client email, or spouse…"
+          className="field max-w-md"
+        />
+        <button type="submit" className="btn-primary">
+          Search
+        </button>
+        {q && (
+          <Link href="/dashboard" className="btn-ghost">
+            Clear
+          </Link>
+        )}
+      </form>
+
       {rows.length === 0 ? (
         <div className="card flex flex-col items-center gap-3 p-12 text-center">
-          <p className="text-[var(--slate)]">No consultations yet.</p>
-          <Link href="/dashboard/consultations/new" className="btn-primary">
-            Create your first consultation
-          </Link>
+          {q ? (
+            <>
+              <p className="text-[var(--slate)]">
+                No consultations match &ldquo;{q}&rdquo;.
+              </p>
+              <Link href="/dashboard" className="btn-ghost">
+                Clear search
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-[var(--slate)]">No consultations yet.</p>
+              <Link
+                href="/dashboard/consultations/new"
+                className="btn-primary"
+              >
+                Create your first consultation
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="card overflow-hidden">

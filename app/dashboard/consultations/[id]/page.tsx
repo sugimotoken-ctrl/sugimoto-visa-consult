@@ -44,6 +44,13 @@ export default async function ConsultationDetailPage({
     (a: any, b: any) => a.sort_order - b.sort_order
   );
 
+  // Full presentation history (every generated version).
+  const { data: decks } = await supabase
+    .from("decks")
+    .select("id, url, language, created_at")
+    .eq("consultation_id", id)
+    .order("created_at", { ascending: false });
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
@@ -65,6 +72,46 @@ export default async function ConsultationDetailPage({
         deckUrl={c.deck_url}
         deckError={c.deck_error}
       />
+
+      {decks && decks.length > 0 && (
+        <div className="card p-6">
+          <h2 className="font-serif text-lg text-[var(--navy)]">
+            Presentation history
+          </h2>
+          <p className="mt-1 text-sm text-[var(--slate)]">
+            Every generated version is kept. The newest is also available above.
+          </p>
+          <ul className="mt-4 divide-y divide-[var(--border)]">
+            {decks.map((d: any, i: number) => (
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-3 py-3 text-sm"
+              >
+                <div>
+                  <span className="font-medium text-[var(--navy)]">
+                    {i === 0 ? "Latest" : `Version ${decks.length - i}`}
+                  </span>
+                  <span className="ml-2 text-[var(--slate)]">
+                    {new Date(d.created_at).toLocaleString()}
+                    {d.language ? ` · ${d.language}` : ""}
+                  </span>
+                </div>
+                {d.url ? (
+                  <a
+                    href={d.url}
+                    download
+                    className="font-semibold text-[var(--navy)] underline"
+                  >
+                    Download
+                  </a>
+                ) : (
+                  <span className="text-[var(--slate)]">unavailable</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="card p-6">
         <h2 className="font-serif text-lg text-[var(--navy)]">

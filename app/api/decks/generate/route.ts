@@ -162,6 +162,15 @@ export async function POST(req: Request) {
       })
       .eq("id", consultationId);
 
+    // Record this version in the presentation history (every generation kept).
+    await supabase.from("decks").insert({
+      consultation_id: consultationId,
+      storage_path: path,
+      url: signed.signedUrl,
+      language,
+      created_by: profile.id,
+    });
+
     return NextResponse.json({ ok: true, url: signed.signedUrl });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Generation failed.";

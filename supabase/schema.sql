@@ -108,9 +108,21 @@ create table if not exists public.children (
   sort_order int not null default 0
 );
 
+-- Presentation history: one row per generated deck (every version kept).
+create table if not exists public.decks (
+  id uuid primary key default gen_random_uuid(),
+  consultation_id uuid not null references public.consultations(id) on delete cascade,
+  storage_path text not null,
+  url text,
+  language text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_consultations_consultant on public.consultations(consultant_id);
 create index if not exists idx_children_consultation on public.children(consultation_id);
 create index if not exists idx_cities_country on public.cities(country_id);
+create index if not exists idx_decks_consultation on public.decks(consultation_id);
 
 -- ---------------------------------------------------------------------------
 -- Helper functions (SECURITY DEFINER → bypass RLS, avoid policy recursion)
@@ -169,6 +181,7 @@ alter table public.cities        enable row level security;
 alter table public.languages     enable row level security;
 alter table public.consultations enable row level security;
 alter table public.children      enable row level security;
+alter table public.decks         enable row level security;
 alter table public.admin_emails  enable row level security;
 
 -- profiles
@@ -232,6 +245,21 @@ create policy "own children" on public.children
   with check (exists (
     select 1 from public.consultations c
     where c.id = children.consultation_id
+      and (c.consultant_id = auth.uid() or public.is_admin())
+  ));
+
+-- decks history: gated by parent consultation ownership
+drop policy if exists "own decks history" on public.decks;
+create policy "own decks history" on public.decks
+  for all
+  using (exists (
+    select 1 from public.consultations c
+    where c.id = decks.consultation_id
+      and (c.consultant_id = auth.uid() or public.is_admin())
+  ))
+  with check (exists (
+    select 1 from public.consultations c
+    where c.id = decks.consultation_id
       and (c.consultant_id = auth.uid() or public.is_admin())
   ));
 
