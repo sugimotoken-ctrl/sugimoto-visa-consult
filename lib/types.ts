@@ -52,6 +52,23 @@ export type Child = {
 
 export type DeckStatus = "draft" | "generating" | "ready" | "error";
 
+export type OdooTagMap = {
+  id: string;
+  odoo_tag_id: number;
+  odoo_tag_name: string;
+  consultant_id: string | null;
+  created_at: string;
+};
+
+export type OdooConfig = {
+  id: number;
+  source_stage_id: number | null;
+  source_stage_name: string | null;
+  enabled: boolean;
+  last_synced_at: string | null;
+  last_sync_result: string | null;
+};
+
 export type Deck = {
   id: string;
   consultation_id: string;
@@ -77,6 +94,8 @@ export type Consultation = {
   country_id: string | null;
   city_id: string | null;
   language_id: string | null;
+  odoo_lead_id: number | null;
+  source: "manual" | "odoo";
   deck_status: DeckStatus;
   deck_url: string | null;
   deck_error: string | null;

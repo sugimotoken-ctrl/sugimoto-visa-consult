@@ -93,6 +93,8 @@ create table if not exists public.consultations (
   country_id uuid references public.countries(id) on delete set null,
   city_id uuid references public.cities(id) on delete set null,
   language_id uuid references public.languages(id) on delete set null,
+  odoo_lead_id bigint,
+  source text not null default 'manual',
   deck_status deck_status not null default 'draft',
   deck_url text,
   deck_error text,
@@ -123,6 +125,27 @@ create index if not exists idx_consultations_consultant on public.consultations(
 create index if not exists idx_children_consultation on public.children(consultation_id);
 create index if not exists idx_cities_country on public.cities(country_id);
 create index if not exists idx_decks_consultation on public.decks(consultation_id);
+create unique index if not exists uq_consultations_odoo_lead
+  on public.consultations(odoo_lead_id) where odoo_lead_id is not null;
+
+-- Odoo CRM integration (read-only import)
+create table if not exists public.odoo_tag_map (
+  id uuid primary key default gen_random_uuid(),
+  odoo_tag_id bigint not null unique,
+  odoo_tag_name text not null,
+  consultant_id uuid references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.odoo_config (
+  id int primary key default 1,
+  source_stage_id bigint,
+  source_stage_name text,
+  enabled boolean not null default false,
+  last_synced_at timestamptz,
+  last_sync_result text,
+  constraint odoo_config_single_row check (id = 1)
+);
 
 -- ---------------------------------------------------------------------------
 -- Helper functions (SECURITY DEFINER → bypass RLS, avoid policy recursion)
@@ -182,6 +205,8 @@ alter table public.languages     enable row level security;
 alter table public.consultations enable row level security;
 alter table public.children      enable row level security;
 alter table public.decks         enable row level security;
+alter table public.odoo_tag_map  enable row level security;
+alter table public.odoo_config   enable row level security;
 alter table public.admin_emails  enable row level security;
 
 -- profiles
@@ -262,6 +287,14 @@ create policy "own decks history" on public.decks
     where c.id = decks.consultation_id
       and (c.consultant_id = auth.uid() or public.is_admin())
   ));
+
+-- odoo integration tables: admin only
+drop policy if exists "admin manage tag map" on public.odoo_tag_map;
+create policy "admin manage tag map" on public.odoo_tag_map
+  for all using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "admin manage odoo config" on public.odoo_config;
+create policy "admin manage odoo config" on public.odoo_config
+  for all using (public.is_admin()) with check (public.is_admin());
 
 -- admin_emails: only admins (service role bypasses RLS for seeding)
 drop policy if exists "admin read admin_emails" on public.admin_emails;

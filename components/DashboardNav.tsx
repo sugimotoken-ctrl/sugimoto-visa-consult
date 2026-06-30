@@ -46,6 +46,7 @@ export function DashboardNav({ profile }: { profile: Profile }) {
           {isAdmin && (
             <NavLink href="/dashboard/admin/consultants" label="Consultants" />
           )}
+          {isAdmin && <NavLink href="/dashboard/admin/odoo" label="Odoo" />}
         </nav>
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
