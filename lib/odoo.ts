@@ -76,6 +76,7 @@ export async function odooExecute(
 
 export type OdooStage = { id: number; name: string };
 export type OdooTag = { id: number; name: string };
+export type OdooSalesperson = { id: number; name: string; count: number };
 
 export type OdooLead = {
   id: number;
@@ -90,6 +91,7 @@ export type OdooLead = {
   country_id: [number, string] | false;
   tag_ids: number[];
   stage_id: [number, string] | false;
+  user_id: [number, string] | false; // Salesperson = the consultant who owns the card
 };
 
 export async function getStages(): Promise<OdooStage[]> {
@@ -127,11 +129,28 @@ export async function getLeadsInStage(stageId: number): Promise<OdooLead[]> {
         "country_id",
         "tag_ids",
         "stage_id",
+        "user_id",
       ],
-      limit: 500,
+      limit: 1000,
     }
   );
   return rows as OdooLead[];
+}
+
+// Salespeople that own leads, with counts (the candidates to map to consultants).
+export async function getSalespeople(): Promise<OdooSalesperson[]> {
+  const groups = await odooExecute("crm.lead", "read_group", [[], ["user_id"]], {
+    groupby: ["user_id"],
+    lazy: false,
+  });
+  return (groups as { user_id: [number, string] | false; __count: number }[])
+    .filter((g) => Array.isArray(g.user_id))
+    .map((g) => ({
+      id: (g.user_id as [number, string])[0],
+      name: (g.user_id as [number, string])[1],
+      count: g.__count,
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 // Quick connectivity check used by the admin page.

@@ -52,11 +52,19 @@ export type Child = {
 
 export type DeckStatus = "draft" | "generating" | "ready" | "error";
 
-export type OdooTagMap = {
+export type OdooUserMap = {
+  id: string;
+  odoo_user_id: number;
+  odoo_user_name: string;
+  consultant_id: string | null;
+  created_at: string;
+};
+
+export type OdooTagCountryMap = {
   id: string;
   odoo_tag_id: number;
   odoo_tag_name: string;
-  consultant_id: string | null;
+  country_id: string | null;
   created_at: string;
 };
 

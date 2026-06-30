@@ -5,8 +5,10 @@ import {
   testConnection,
   getStages,
   getTags,
+  getSalespeople,
   type OdooStage,
   type OdooTag,
+  type OdooSalesperson,
 } from "@/lib/odoo";
 import { OdooManager } from "@/components/admin/OdooManager";
 
@@ -23,12 +25,17 @@ export default async function AdminOdooPage() {
   };
   let stages: OdooStage[] = [];
   let tags: OdooTag[] = [];
+  let salespeople: OdooSalesperson[] = [];
 
   if (configured) {
     connection = await testConnection();
     if (connection.ok) {
       try {
-        [stages, tags] = await Promise.all([getStages(), getTags()]);
+        [stages, tags, salespeople] = await Promise.all([
+          getStages(),
+          getTags(),
+          getSalespeople(),
+        ]);
       } catch (e) {
         connection = {
           ok: false,
@@ -38,20 +45,31 @@ export default async function AdminOdooPage() {
     }
   }
 
-  const [{ data: config }, { data: tagMap }, { data: consultants }] =
-    await Promise.all([
-      supabase.from("odoo_config").select("*").eq("id", 1).single(),
-      supabase.from("odoo_tag_map").select("odoo_tag_id, consultant_id"),
-      supabase
-        .from("profiles")
-        .select("*")
-        .eq("status", "active")
-        .order("full_name"),
-    ]);
+  const [
+    { data: config },
+    { data: userMap },
+    { data: tagCountryMap },
+    { data: consultants },
+    { data: countries },
+  ] = await Promise.all([
+    supabase.from("odoo_config").select("*").eq("id", 1).single(),
+    supabase.from("odoo_user_map").select("odoo_user_id, consultant_id"),
+    supabase.from("odoo_tag_country_map").select("odoo_tag_id, country_id"),
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("status", "active")
+      .order("full_name"),
+    supabase.from("countries").select("*").order("name"),
+  ]);
 
-  const mappings: Record<number, string> = {};
-  (tagMap ?? []).forEach((m) => {
-    if (m.consultant_id) mappings[Number(m.odoo_tag_id)] = m.consultant_id;
+  const userMappings: Record<number, string> = {};
+  (userMap ?? []).forEach((m) => {
+    if (m.consultant_id) userMappings[Number(m.odoo_user_id)] = m.consultant_id;
+  });
+  const countryMappings: Record<number, string> = {};
+  (tagCountryMap ?? []).forEach((m) => {
+    if (m.country_id) countryMappings[Number(m.odoo_tag_id)] = m.country_id;
   });
 
   return (
@@ -61,17 +79,20 @@ export default async function AdminOdooPage() {
       </h1>
       <p className="mb-6 text-sm text-[var(--slate)]">
         Import client cards from your Odoo pipeline as draft consultations,
-        routed to consultants by Odoo tag. Read-only — nothing is written back to
-        Odoo.
+        routed to consultants by Odoo Salesperson. Read-only — nothing is written
+        back to Odoo.
       </p>
       <OdooManager
         configured={configured}
         connection={connection}
         stages={stages}
         tags={tags}
+        salespeople={salespeople}
         consultants={consultants ?? []}
+        countries={countries ?? []}
         config={config ?? null}
-        mappings={mappings}
+        userMappings={userMappings}
+        countryMappings={countryMappings}
       />
     </div>
   );

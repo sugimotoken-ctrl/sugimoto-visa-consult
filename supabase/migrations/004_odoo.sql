@@ -10,17 +10,30 @@ alter table public.consultations add column if not exists source text not null d
 create unique index if not exists uq_consultations_odoo_lead
   on public.consultations(odoo_lead_id) where odoo_lead_id is not null;
 
--- Map an Odoo CRM tag to a consultant in this tool (sets imported owner).
-create table if not exists public.odoo_tag_map (
+-- Map an Odoo Salesperson to a consultant in this tool (sets imported owner).
+create table if not exists public.odoo_user_map (
   id uuid primary key default gen_random_uuid(),
-  odoo_tag_id bigint not null unique,
-  odoo_tag_name text not null,
+  odoo_user_id bigint not null unique,
+  odoo_user_name text not null,
   consultant_id uuid references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now()
 );
-alter table public.odoo_tag_map enable row level security;
-drop policy if exists "admin manage tag map" on public.odoo_tag_map;
-create policy "admin manage tag map" on public.odoo_tag_map
+alter table public.odoo_user_map enable row level security;
+drop policy if exists "admin manage user map" on public.odoo_user_map;
+create policy "admin manage user map" on public.odoo_user_map
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Map an Odoo CRM tag to a destination country (e.g. "Canada" -> Canada).
+create table if not exists public.odoo_tag_country_map (
+  id uuid primary key default gen_random_uuid(),
+  odoo_tag_id bigint not null unique,
+  odoo_tag_name text not null,
+  country_id uuid references public.countries(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.odoo_tag_country_map enable row level security;
+drop policy if exists "admin manage tag country" on public.odoo_tag_country_map;
+create policy "admin manage tag country" on public.odoo_tag_country_map
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- Single-row sync configuration (which CRM stage to import from).

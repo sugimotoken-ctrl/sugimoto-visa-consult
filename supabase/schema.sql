@@ -129,11 +129,19 @@ create unique index if not exists uq_consultations_odoo_lead
   on public.consultations(odoo_lead_id) where odoo_lead_id is not null;
 
 -- Odoo CRM integration (read-only import)
-create table if not exists public.odoo_tag_map (
+create table if not exists public.odoo_user_map (
+  id uuid primary key default gen_random_uuid(),
+  odoo_user_id bigint not null unique,
+  odoo_user_name text not null,
+  consultant_id uuid references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.odoo_tag_country_map (
   id uuid primary key default gen_random_uuid(),
   odoo_tag_id bigint not null unique,
   odoo_tag_name text not null,
-  consultant_id uuid references public.profiles(id) on delete cascade,
+  country_id uuid references public.countries(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
@@ -205,7 +213,8 @@ alter table public.languages     enable row level security;
 alter table public.consultations enable row level security;
 alter table public.children      enable row level security;
 alter table public.decks         enable row level security;
-alter table public.odoo_tag_map  enable row level security;
+alter table public.odoo_user_map enable row level security;
+alter table public.odoo_tag_country_map enable row level security;
 alter table public.odoo_config   enable row level security;
 alter table public.admin_emails  enable row level security;
 
@@ -289,8 +298,11 @@ create policy "own decks history" on public.decks
   ));
 
 -- odoo integration tables: admin only
-drop policy if exists "admin manage tag map" on public.odoo_tag_map;
-create policy "admin manage tag map" on public.odoo_tag_map
+drop policy if exists "admin manage user map" on public.odoo_user_map;
+create policy "admin manage user map" on public.odoo_user_map
+  for all using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "admin manage tag country" on public.odoo_tag_country_map;
+create policy "admin manage tag country" on public.odoo_tag_country_map
   for all using (public.is_admin()) with check (public.is_admin());
 drop policy if exists "admin manage odoo config" on public.odoo_config;
 create policy "admin manage odoo config" on public.odoo_config

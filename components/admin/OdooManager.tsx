@@ -3,30 +3,38 @@
 import { useActionState, useState, useTransition } from "react";
 import {
   saveOdooStage,
-  mapTag,
+  mapSalesperson,
+  mapTagCountry,
   runOdooSync,
 } from "@/app/dashboard/admin/odoo-actions";
-import type { OdooConfig, Profile } from "@/lib/types";
+import type { Country, OdooConfig, Profile } from "@/lib/types";
 
 type Stage = { id: number; name: string };
 type Tag = { id: number; name: string };
+type Salesperson = { id: number; name: string; count: number };
 
 export function OdooManager({
   configured,
   connection,
   stages,
   tags,
+  salespeople,
   consultants,
+  countries,
   config,
-  mappings,
+  userMappings,
+  countryMappings,
 }: {
   configured: boolean;
   connection: { ok: boolean; error?: string };
   stages: Stage[];
   tags: Tag[];
+  salespeople: Salesperson[];
   consultants: Profile[];
+  countries: Country[];
   config: OdooConfig | null;
-  mappings: Record<number, string>; // odoo_tag_id -> consultant_id
+  userMappings: Record<number, string>; // odoo_user_id -> consultant_id
+  countryMappings: Record<number, string>; // odoo_tag_id -> country_id
 }) {
   if (!configured) {
     return (
@@ -65,10 +73,15 @@ export function OdooManager({
       </div>
 
       <StagePicker stages={stages} config={config} />
-      <TagMapping
-        tags={tags}
+      <SalespersonMapping
+        salespeople={salespeople}
         consultants={consultants}
-        mappings={mappings}
+        mappings={userMappings}
+      />
+      <TagCountryMapping
+        tags={tags}
+        countries={countries}
+        mappings={countryMappings}
       />
       <SyncPanel config={config} />
     </div>
@@ -87,7 +100,7 @@ function StagePicker({
     <div className="card p-6">
       <h2 className="font-serif text-lg text-[var(--navy)]">Source stage</h2>
       <p className="mt-1 text-sm text-[var(--slate)]">
-        Cards in this CRM stage are imported as consultations.
+        Cards in this CRM stage are imported as draft consultations.
       </p>
       <form action={action} className="mt-4 flex flex-wrap items-end gap-3">
         <div className="grow">
@@ -132,36 +145,42 @@ function StagePicker({
   );
 }
 
-function TagMapping({
-  tags,
+function SalespersonMapping({
+  salespeople,
   consultants,
   mappings,
 }: {
-  tags: Tag[];
+  salespeople: Salesperson[];
   consultants: Profile[];
   mappings: Record<number, string>;
 }) {
   return (
     <div className="card p-6">
       <h2 className="font-serif text-lg text-[var(--navy)]">
-        Tag → consultant
+        Salesperson → consultant
       </h2>
       <p className="mt-1 text-sm text-[var(--slate)]">
-        Each imported card is assigned to the consultant whose Odoo tag it
-        carries. Unmapped cards are skipped during sync.
+        Each imported card is assigned to the consultant matching its Odoo
+        Salesperson. Cards whose salesperson isn&apos;t mapped are skipped.
       </p>
       <div className="mt-4 divide-y divide-[var(--border)]">
-        {tags.length === 0 && (
+        {salespeople.length === 0 && (
           <p className="py-2 text-sm text-[var(--slate)]">
-            No CRM tags found in Odoo.
+            No salespeople found in Odoo.
           </p>
         )}
-        {tags.map((tag) => (
-          <TagRow
-            key={tag.id}
-            tag={tag}
-            consultants={consultants}
-            current={mappings[tag.id] ?? ""}
+        {salespeople.map((sp) => (
+          <MapRow
+            key={sp.id}
+            label={`${sp.name}`}
+            hint={`${sp.count} cards`}
+            options={consultants.map((c) => ({
+              value: c.id,
+              label: c.full_name || c.email,
+            }))}
+            current={mappings[sp.id] ?? ""}
+            onChange={(v) => mapSalesperson(sp.id, sp.name, v || null)}
+            placeholder="— Not mapped —"
           />
         ))}
       </div>
@@ -169,20 +188,71 @@ function TagMapping({
   );
 }
 
-function TagRow({
-  tag,
-  consultants,
-  current,
+function TagCountryMapping({
+  tags,
+  countries,
+  mappings,
 }: {
-  tag: Tag;
-  consultants: Profile[];
+  tags: Tag[];
+  countries: Country[];
+  mappings: Record<number, string>;
+}) {
+  return (
+    <div className="card p-6">
+      <h2 className="font-serif text-lg text-[var(--navy)]">
+        Tag → destination country
+      </h2>
+      <p className="mt-1 text-sm text-[var(--slate)]">
+        Optional: map an Odoo tag (e.g. &ldquo;Canada&rdquo;) to a country so the
+        consultation&apos;s destination is set automatically on import.
+      </p>
+      <div className="mt-4 divide-y divide-[var(--border)]">
+        {tags.length === 0 && (
+          <p className="py-2 text-sm text-[var(--slate)]">No CRM tags found.</p>
+        )}
+        {tags.map((tag) => (
+          <MapRow
+            key={tag.id}
+            label={tag.name}
+            options={countries.map((c) => ({ value: c.id, label: c.name }))}
+            current={mappings[tag.id] ?? ""}
+            onChange={(v) => mapTagCountry(tag.id, tag.name, v || null)}
+            placeholder="— No country —"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Generic mapping row: a label and a select that calls a server action on change.
+function MapRow({
+  label,
+  hint,
+  options,
+  current,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  hint?: string;
+  options: { value: string; label: string }[];
   current: string;
+  onChange: (value: string) => Promise<void> | void;
+  placeholder: string;
 }) {
   const [pending, start] = useTransition();
   const [value, setValue] = useState(current);
   return (
     <div className="flex items-center justify-between gap-3 py-3">
-      <span className="text-sm font-medium text-[var(--navy)]">{tag.name}</span>
+      <span className="text-sm font-medium text-[var(--navy)]">
+        {label}
+        {hint && (
+          <span className="ml-2 font-normal text-xs text-[var(--slate)]">
+            {hint}
+          </span>
+        )}
+      </span>
       <select
         className="field max-w-xs"
         value={value}
@@ -190,13 +260,13 @@ function TagRow({
         onChange={(e) => {
           const v = e.target.value;
           setValue(v);
-          start(() => mapTag(tag.id, tag.name, v || null));
+          start(() => Promise.resolve(onChange(v)));
         }}
       >
-        <option value="">— Not mapped —</option>
-        {consultants.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.full_name || c.email}
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>
@@ -221,7 +291,7 @@ function SyncPanel({ config }: { config: OdooConfig | null }) {
               setResult(
                 r.error
                   ? `Error: ${r.error}`
-                  : `Imported ${r.created} new · ${r.skippedExisting} already imported · ${r.skippedUnmapped} skipped (no consultant tag).`
+                  : `Imported ${r.created} new · ${r.skippedExisting} already imported · ${r.skippedUnmapped} skipped (salesperson not mapped).`
               );
             })
           }
