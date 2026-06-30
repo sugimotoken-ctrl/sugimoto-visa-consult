@@ -32,7 +32,13 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path === "/login" || path === "/signup";
-  const isPublic = isAuthRoute || path === "/" || path.startsWith("/auth");
+  // /api routes enforce their own auth (session or CRON_SECRET) and must not be
+  // redirected to the login page.
+  const isPublic =
+    isAuthRoute ||
+    path === "/" ||
+    path.startsWith("/auth") ||
+    path.startsWith("/api");
 
   // Not signed in → bounce protected routes to login.
   if (!user && !isPublic) {
